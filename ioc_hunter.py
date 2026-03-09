@@ -146,7 +146,7 @@ def ip_query(start: str, end: str) -> dict:
                 "minimum_should_match": 1,
             }
         },
-        "sort": [{"@timestamp": {"order": "desc"}}],
+        "sort": [{"@timestamp": {"order": "desc", "unmapped_type": "date"}}],
     }
 
 
@@ -185,7 +185,7 @@ def domain_query(start: str, end: str) -> dict:
                 "minimum_should_match": 1,
             }
         },
-        "sort": [{"@timestamp": {"order": "desc"}}],
+        "sort": [{"@timestamp": {"order": "desc", "unmapped_type": "date"}}],
     }
 
 
@@ -216,7 +216,7 @@ def firewall_ip_query(start: str, end: str) -> dict:
                 "minimum_should_match": 1,
             }
         },
-        "sort": [{"@timestamp": {"order": "desc"}}],
+        "sort": [{"@timestamp": {"order": "desc", "unmapped_type": "date"}}],
     }
 
 

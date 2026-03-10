@@ -44,15 +44,13 @@ MALICIOUS_DOMAINS = [
     "pprocessplanet.org",
     "sso.facetalk.org",
     "sso.moodleuni.com",
-    "ecs.office.com",
 ]
 
 # ─────────────────────────────────────────────
 # CONFIGURATION
 # ─────────────────────────────────────────────
-#DEFAULT_HOST = "https://localhost:9200"
-DEFAULT_HOST = "https://graylog-lab.socfortress.co:9200"
-DEFAULT_INDEX = "wazuh-lab_*"
+DEFAULT_HOST = "https://localhost:9200"
+DEFAULT_INDEX = "wazuh-alerts_*"
 
 # Historical search window (per client request)
 SEARCH_START = "2026-01-01 00:00:00.000"

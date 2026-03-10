@@ -44,19 +44,22 @@ MALICIOUS_DOMAINS = [
     "pprocessplanet.org",
     "sso.facetalk.org",
     "sso.moodleuni.com",
+    "ecs.office.com",
 ]
 
 # ─────────────────────────────────────────────
 # CONFIGURATION
 # ─────────────────────────────────────────────
-DEFAULT_HOST = "https://localhost:9200"
-DEFAULT_INDEX = "wazuh-alerts-*"
+#DEFAULT_HOST = "https://localhost:9200"
+DEFAULT_HOST = "https://graylog-lab.socfortress.co:9200"
+DEFAULT_INDEX = "wazuh-lab_*"
 
 # Historical search window (per client request)
-SEARCH_START = "2026-01-01T00:00:00Z"
-SEARCH_END   = "2026-03-03T23:59:59Z"
+SEARCH_START = "2026-01-01 00:00:00.000"
+SEARCH_END   = "2026-03-10 23:59:59.999"
 
 MAX_HITS = 500  # Max results to return per query
+DEBUG = True    # Print query JSON and raw response info
 
 
 # ─────────────────────────────────────────────
@@ -102,7 +105,7 @@ def build_auth_header(username: str, password: str) -> str:
 # QUERY BUILDERS
 # ─────────────────────────────────────────────
 def time_range_filter(start: str, end: str) -> dict:
-    return {"range": {"@timestamp": {"gte": start, "lte": end}}}
+    return {"range": {"timestamp": {"gte": start, "lte": end}}}
 
 
 def ip_query(start: str, end: str) -> dict:
@@ -111,11 +114,11 @@ def ip_query(start: str, end: str) -> dict:
     Checks src_ip, dst_ip, and the nested eventdata fields Wazuh maps.
     """
     ip_terms = [
-        {"terms": {"data_win_eventdata_sourceIp.keyword": MALICIOUS_IPS}},
-        {"terms": {"data_win_eventdata_destinationIp.keyword": MALICIOUS_IPS}},
+        {"terms": {"data_win_eventdata_sourceIp": MALICIOUS_IPS}},
+        {"terms": {"data_win_eventdata_destinationIp": MALICIOUS_IPS}},
         # Flat field aliases Wazuh/Graylog may create
-        {"terms": {"src_ip.keyword": MALICIOUS_IPS}},
-        {"terms": {"dst_ip.keyword": MALICIOUS_IPS}},
+        {"terms": {"src_ip": MALICIOUS_IPS}},
+        {"terms": {"dst_ip": MALICIOUS_IPS}},
         # Wildcard catch across the raw message (fallback)
         *[
             {"match_phrase": {"data_win_system_message": ip}}
@@ -125,8 +128,8 @@ def ip_query(start: str, end: str) -> dict:
     return {
         "size": MAX_HITS,
         "_source": [
-            "@timestamp",
-            "agent.name",
+            "timestamp",
+            "agent_name",
             "data_win_system_message",
             "data_win_eventdata_sourceIp",
             "data_win_eventdata_destinationIp",
@@ -140,13 +143,13 @@ def ip_query(start: str, end: str) -> dict:
             "bool": {
                 "must": [
                     time_range_filter(start, end),
-                    {"terms": {"rule_group3.keyword": ["sysmon_event3"]}},
+                    {"terms": {"rule_group3": ["sysmon_event3"]}},
                 ],
                 "should": ip_terms,
                 "minimum_should_match": 1,
             }
         },
-        "sort": [{"@timestamp": {"order": "desc", "unmapped_type": "date"}}],
+        "sort": [{"timestamp": {"order": "desc", "unmapped_type": "date"}}],
     }
 
 
@@ -166,8 +169,8 @@ def domain_query(start: str, end: str) -> dict:
     return {
         "size": MAX_HITS,
         "_source": [
-            "@timestamp",
-            "agent.name",
+            "timestamp",
+            "agent_name",
             "data_win_eventdata_queryName",
             "data_win_eventdata_queryResults",
             "data_win_eventdata_image",
@@ -179,13 +182,13 @@ def domain_query(start: str, end: str) -> dict:
             "bool": {
                 "must": [
                     time_range_filter(start, end),
-                    {"terms": {"rule_group3.keyword": ["sysmon_event_22"]}},
+                    {"terms": {"rule_group3": ["sysmon_event_22"]}},
                 ],
                 "should": domain_should,
                 "minimum_should_match": 1,
             }
         },
-        "sort": [{"@timestamp": {"order": "desc", "unmapped_type": "date"}}],
+        "sort": [{"timestamp": {"order": "desc", "unmapped_type": "date"}}],
     }
 
 
@@ -195,8 +198,8 @@ def firewall_ip_query(start: str, end: str) -> dict:
     Adjust rule_group1 / rule_group2 values to match your index mappings.
     """
     ip_terms = [
-        {"terms": {"src_ip.keyword": MALICIOUS_IPS}},
-        {"terms": {"dst_ip.keyword": MALICIOUS_IPS}},
+        {"terms": {"src_ip": MALICIOUS_IPS}},
+        {"terms": {"dst_ip": MALICIOUS_IPS}},
         *[
             {"match_phrase": {"full_message": ip}}
             for ip in MALICIOUS_IPS
@@ -204,7 +207,7 @@ def firewall_ip_query(start: str, end: str) -> dict:
     ]
     return {
         "size": MAX_HITS,
-        "_source": ["@timestamp", "src_ip", "dst_ip", "full_message", "rule_id"],
+        "_source": ["timestamp", "src_ip", "dst_ip", "full_message", "rule_id"],
         "query": {
             "bool": {
                 "must": [
@@ -216,7 +219,7 @@ def firewall_ip_query(start: str, end: str) -> dict:
                 "minimum_should_match": 1,
             }
         },
-        "sort": [{"@timestamp": {"order": "desc", "unmapped_type": "date"}}],
+        "sort": [{"timestamp": {"order": "desc", "unmapped_type": "date"}}],
     }
 
 
@@ -226,8 +229,8 @@ def firewall_ip_query(start: str, end: str) -> dict:
 def print_hit(hit: dict, hit_num: int):
     src = hit.get("_source", {})
     print(f"\n  ── Hit #{hit_num} ──────────────────────────────")
-    print(f"  Timestamp : {src.get('@timestamp', 'N/A')}")
-    print(f"  Agent     : {src.get('agent', {}).get('name', src.get('agent_name', 'N/A'))}")
+    print(f"  Timestamp : {src.get('timestamp', 'N/A')}")
+    print(f"  Agent     : {src.get('agent_name', 'N/A')}")
     print(f"  Rule ID   : {src.get('rule_id', 'N/A')}")
 
     # IP-specific fields
@@ -266,10 +269,19 @@ def run_search(label: str, url: str, auth: str, query: dict) -> list:
     print(f"\n{'='*60}")
     print(f"  SEARCH: {label}")
     print(f"{'='*60}")
+    if DEBUG:
+        print(f"\n  [DEBUG] URL: {url}")
+        print(f"  [DEBUG] Query JSON:")
+        print(json.dumps(query, indent=2))
     result = make_request(url, auth, query)
     hits = result.get("hits", {}).get("hits", [])
     total = result.get("hits", {}).get("total", {})
     total_val = total.get("value", 0) if isinstance(total, dict) else total
+    if DEBUG:
+        print(f"\n  [DEBUG] Raw total: {total}")
+        print(f"  [DEBUG] Shards: {result.get('_shards', {})}")
+        if result.get("error"):
+            print(f"  [DEBUG] Error: {json.dumps(result['error'], indent=2)}")
     print(f"  Total matches: {total_val}  (showing up to {MAX_HITS})")
     if hits:
         for i, hit in enumerate(hits, 1):
@@ -304,8 +316,8 @@ def main():
     print(f"\nDefault search window: {SEARCH_START}  →  {SEARCH_END}")
     custom = input("Use default window? [Y/n]: ").strip().lower()
     if custom == "n":
-        start = input(f"  Start (ISO8601, e.g. {SEARCH_START}): ").strip() or SEARCH_START
-        end   = input(f"  End   (ISO8601, e.g. {SEARCH_END}): ").strip() or SEARCH_END
+        start = input(f"  Start (e.g. {SEARCH_START}): ").strip() or SEARCH_START
+        end   = input(f"  End   (e.g. {SEARCH_END}): ").strip() or SEARCH_END
     else:
         start, end = SEARCH_START, SEARCH_END
 

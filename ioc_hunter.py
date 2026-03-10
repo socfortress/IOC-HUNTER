@@ -44,6 +44,7 @@ MALICIOUS_DOMAINS = [
     "pprocessplanet.org",
     "sso.facetalk.org",
     "sso.moodleuni.com",
+    "lvshvma-01.ke.hawaii.czn.com",
 ]
 
 # ─────────────────────────────────────────────
